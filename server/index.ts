@@ -438,6 +438,9 @@ async function main() {
     },
   });
 
+  // Give the server a moment to be fully ready before opening browser
+  await Bun.sleep(200);
+
   // Open browser
   const browserUrl = `http://localhost:${port}`;
   openBrowser(browserUrl);
