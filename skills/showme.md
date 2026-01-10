@@ -1,6 +1,6 @@
 # ShowMe - Visual Mockup & Annotation Tool for Claude Code
 
-ShowMe lets you create visual mockups with coordinate-tracked annotations. Draw on multiple pages, add pins/areas/arrows/highlights, and provide component-specific feedback.
+ShowMe lets you create visual mockups with coordinate-tracked annotations across multiple pages. Draw, annotate, and provide component-specific feedback that Claude can see and act on.
 
 ## Instructions for Claude
 
@@ -16,77 +16,126 @@ The command will:
 2. Let the user create pages (blank or from images), draw, and add annotations
 3. Output JSON with structured page and annotation data
 
-### Processing the Output
+---
 
-The output JSON has this structure:
+## Processing the Output
 
-```json
-{
-  "hookSpecificOutput": {
-    "decision": { "behavior": "allow" },
-    "showme": {
-      "pages": [
-        {
-          "id": "page-uuid",
-          "name": "Page 1",
-          "image": "data:image/png;base64,...",
-          "width": 800,
-          "height": 600,
-          "annotations": [
-            {
-              "id": "ann-uuid",
-              "type": "pin|area|arrow|highlight",
-              "number": 1,
-              "bounds": { "x": 100, "y": 150, "width": 50, "height": 50 },
-              "feedback": "User's feedback for this specific component"
-            }
-          ]
-        }
-      ],
-      "globalNotes": "Overall notes/context from the user"
-    }
-  }
-}
-```
+**IMPORTANT:** The output may contain MULTIPLE pages. You MUST process ALL of them.
 
-**To process the result:**
+Run this script to extract all pages and get a structured summary:
 
 ```bash
-# Extract the first page image
-python3 -c "
+python3 << 'EOF'
 import sys, json, base64
+
 data = json.load(sys.stdin)
-pages = data.get('hookSpecificOutput', {}).get('showme', {}).get('pages', [])
-if pages:
-    img_data = pages[0]['image'].split(',')[1]
-    sys.stdout.buffer.write(base64.b64decode(img_data))
-" < <output_file> > /tmp/showme-page-1.png
+showme = data.get('hookSpecificOutput', {}).get('showme', {})
+pages = showme.get('pages', [])
+global_notes = showme.get('globalNotes', '')
+
+print('=' * 60)
+print(f'SHOWME OUTPUT: {len(pages)} page(s)')
+print('=' * 60)
+
+if global_notes:
+    print(f'\nGLOBAL NOTES: {global_notes}\n')
+
+for i, page in enumerate(pages):
+    img_data = page.get('image', '')
+    filename = f'/tmp/showme-page-{i+1}.png'
+
+    if img_data and ',' in img_data:
+        with open(filename, 'wb') as f:
+            f.write(base64.b64decode(img_data.split(',')[1]))
+        saved = f'saved to {filename}'
+    else:
+        saved = '(no image)'
+
+    anns = page.get('annotations', [])
+    w, h = page.get('width', 0), page.get('height', 0)
+
+    print(f"\nPage {i+1}: \"{page.get('name', 'Untitled')}\" ({w}x{h})")
+    print(f"  Image: {saved}")
+    print(f"  Annotations: {len(anns)}")
+
+    for ann in anns:
+        b = ann.get('bounds', {})
+        coord = f"({b.get('x', 0)}, {b.get('y', 0)})"
+        if b.get('width') and b.get('height'):
+            coord += f" {b.get('width')}x{b.get('height')}"
+
+        feedback = ann.get('feedback', '')
+        print(f"    #{ann.get('number', '?')} [{ann.get('type', '?')}] at {coord}")
+        if feedback:
+            print(f"       → \"{feedback}\"")
+
+print('\n' + '=' * 60)
+print('ACTION: Read each /tmp/showme-page-N.png to see the visuals')
+print('=' * 60)
+EOF
 ```
 
-Then:
+---
 
-1. **Read each page image** to view the visual mockup
-2. **Review annotations** - each has coordinates (`bounds`) and `feedback` text
-3. **Read globalNotes** for overall context or questions
+## After Running the Script
 
-### Understanding Annotations
+1. **Read the summary output** - Understand how many pages, what annotations exist
+2. **Read EACH page image** - `/tmp/showme-page-1.png`, `/tmp/showme-page-2.png`, etc.
+3. **Cross-reference annotations** - Each numbered marker has feedback text
+4. **Address globalNotes** - This contains overall context or questions
+5. **Acknowledge each annotation** - Let the user know you saw their specific feedback
 
-Annotations are coordinate-tracked markers on the canvas:
+---
 
-| Type        | Description                | Key Fields                            |
-| ----------- | -------------------------- | ------------------------------------- |
-| `pin`       | Numbered marker at a point | `bounds.x`, `bounds.y` (center point) |
-| `area`      | Rectangle selection        | `bounds` (x, y, width, height)        |
-| `arrow`     | Directional arrow          | `bounds` covers start-to-end region   |
-| `highlight` | Freehand highlight stroke  | `bounds` covers the stroke area       |
+## Understanding Annotations
 
-Each annotation has:
+Annotations are coordinate-tracked markers. Each has:
 
-- `number` - Display order (1, 2, 3...)
-- `bounds` - Location/size on the canvas
-- `feedback` - User's text feedback for that specific component
+- `number` - Display order (1, 2, 3...) - unique across ALL pages
+- `type` - The kind of marker (see below)
+- `bounds` - Location on canvas: `{x, y, width, height}`
+- `feedback` - User's specific feedback for that component
 
-**IMPORTANT:** The `feedback` field on each annotation contains component-specific feedback. The user marked that exact location to give targeted feedback about that UI element.
+| Type        | What It Means                  | Bounds Usage                    |
+| ----------- | ------------------------------ | ------------------------------- |
+| `pin`       | Point marker (numbered circle) | x, y = center point             |
+| `area`      | Rectangle selection            | x, y, width, height = full rect |
+| `arrow`     | Directional pointer            | bounds covers start-to-end      |
+| `highlight` | Freehand highlight stroke      | bounds covers the stroke area   |
+
+**Coordinate System:** (0, 0) is top-left corner. X increases rightward, Y increases downward.
+
+---
+
+## Example Output
+
+```
+============================================================
+SHOWME OUTPUT: 2 page(s)
+============================================================
+
+GLOBAL NOTES: Please review the login flow and fix alignment issues
+
+Page 1: "Login Screen" (800x600)
+  Image: saved to /tmp/showme-page-1.png
+  Annotations: 2
+    #1 [pin] at (452, 128)
+       → "This button should be blue, not gray"
+    #2 [area] at (0, 480) 800x120
+       → "Footer needs more padding"
+
+Page 2: "Dashboard" (800x600)
+  Image: saved to /tmp/showme-page-2.png
+  Annotations: 1
+    #3 [arrow] at (200, 300) 150x50
+       → "Move this chart to the left sidebar"
+
+============================================================
+ACTION: Read each /tmp/showme-page-N.png to see the visuals
+============================================================
+```
+
+---
 
 ## User Instructions
 
@@ -124,3 +173,7 @@ Each annotation has:
 4. Click annotations to add component-specific feedback
 5. Add global notes at the bottom for overall context
 6. Click "Send to Claude" when done
+
+---
+
+Built with ❤️ by **Yaron - No Fluff** | [YouTube](https://www.youtube.com/channel/UCuCwMz8aMJBFfhDnYicfdjg/)
