@@ -144,6 +144,22 @@ body {
   min-width: 32px;
 }
 
+/* Zoom Controls */
+.zoom-controls {
+  gap: 4px;
+}
+
+.zoom-level {
+  min-width: 50px;
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
+  background: #0f3460;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
 /* ============================================
    WORKSPACE LAYOUT
    ============================================ */

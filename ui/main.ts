@@ -422,6 +422,17 @@ class ShowMeCanvas {
   // Resize debounce
   private resizeTimeout: number | null = null;
 
+  // Zoom and pan state
+  private scale = 1.0;
+  private minScale = 0.25;
+  private maxScale = 4.0;
+  private scaleStep = 0.1;
+  private panOffset: Point = { x: 0, y: 0 };
+  private isPanning = false;
+  private lastPanPoint: Point = { x: 0, y: 0 };
+  private spaceHeld = false;
+  private canvasWrapper: HTMLElement | null = null;
+
   constructor() {
     this.canvas = document.getElementById("canvas") as HTMLCanvasElement;
     this.ctx = this.canvas.getContext("2d")!;
@@ -430,6 +441,7 @@ class ShowMeCanvas {
     ) as HTMLCanvasElement;
     this.annotationRenderer = new AnnotationRenderer(this.annotationCanvas);
     this.hitTester = new HitTester();
+    this.canvasWrapper = document.querySelector(".canvas-wrapper");
 
     this.initCanvas();
     this.bindEvents();
@@ -624,8 +636,31 @@ class ShowMeCanvas {
         .classList.toggle("collapsed");
     });
 
+    // Zoom controls
+    document
+      .getElementById("zoom-in")!
+      .addEventListener("click", () => this.zoomIn());
+    document
+      .getElementById("zoom-out")!
+      .addEventListener("click", () => this.zoomOut());
+    document
+      .getElementById("zoom-fit")!
+      .addEventListener("click", () => this.zoomFit());
+    document
+      .getElementById("zoom-reset")!
+      .addEventListener("click", () => this.zoomReset());
+
+    // Zoom with mouse wheel (Ctrl + scroll)
+    this.canvas.addEventListener("wheel", this.onWheel.bind(this), {
+      passive: false,
+    });
+    this.annotationCanvas.addEventListener("wheel", this.onWheel.bind(this), {
+      passive: false,
+    });
+
     // Keyboard shortcuts
     document.addEventListener("keydown", this.onKeyDown.bind(this));
+    document.addEventListener("keyup", this.onKeyUp.bind(this));
     document.addEventListener("paste", this.onPaste.bind(this));
 
     // Click outside to close menus
@@ -704,18 +739,112 @@ class ShowMeCanvas {
   }
 
   // ============================================
+  // ZOOM AND PAN
+  // ============================================
+
+  private setZoom(newScale: number): void {
+    this.scale = Math.max(this.minScale, Math.min(this.maxScale, newScale));
+    this.applyTransform();
+    this.updateZoomDisplay();
+  }
+
+  private zoomIn(): void {
+    this.setZoom(this.scale + this.scaleStep);
+  }
+
+  private zoomOut(): void {
+    this.setZoom(this.scale - this.scaleStep);
+  }
+
+  private zoomReset(): void {
+    this.scale = 1.0;
+    this.panOffset = { x: 0, y: 0 };
+    this.applyTransform();
+    this.updateZoomDisplay();
+  }
+
+  private zoomFit(): void {
+    const container = document.querySelector(
+      ".canvas-container",
+    ) as HTMLElement;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const padding = 40;
+    const availableWidth = containerRect.width - padding * 2;
+    const availableHeight = containerRect.height - padding * 2;
+
+    const scaleX = availableWidth / this.canvas.width;
+    const scaleY = availableHeight / this.canvas.height;
+    const fitScale = Math.min(scaleX, scaleY, 1);
+
+    this.scale = fitScale;
+    this.panOffset = { x: 0, y: 0 };
+    this.applyTransform();
+    this.updateZoomDisplay();
+  }
+
+  private applyTransform(): void {
+    if (!this.canvasWrapper) return;
+    this.canvasWrapper.style.transform = `translate(${this.panOffset.x}px, ${this.panOffset.y}px) scale(${this.scale})`;
+    this.canvasWrapper.style.transformOrigin = "center center";
+  }
+
+  private updateZoomDisplay(): void {
+    const zoomLevel = document.getElementById("zoom-level");
+    if (zoomLevel) {
+      zoomLevel.textContent = `${Math.round(this.scale * 100)}%`;
+    }
+  }
+
+  private startPan(e: MouseEvent): void {
+    if (e.button === 1 || this.spaceHeld) {
+      this.isPanning = true;
+      this.lastPanPoint = { x: e.clientX, y: e.clientY };
+      if (this.canvasWrapper) {
+        this.canvasWrapper.style.cursor = "grabbing";
+      }
+      e.preventDefault();
+    }
+  }
+
+  private doPan(e: MouseEvent): void {
+    if (!this.isPanning) return;
+    const dx = e.clientX - this.lastPanPoint.x;
+    const dy = e.clientY - this.lastPanPoint.y;
+    this.panOffset.x += dx;
+    this.panOffset.y += dy;
+    this.lastPanPoint = { x: e.clientX, y: e.clientY };
+    this.applyTransform();
+  }
+
+  private endPan(): void {
+    this.isPanning = false;
+    if (this.canvasWrapper) {
+      this.canvasWrapper.style.cursor = this.spaceHeld ? "grab" : "";
+    }
+  }
+
+  // ============================================
   // DRAWING EVENTS
   // ============================================
 
   private getPoint(e: MouseEvent | Touch): Point {
     const rect = this.canvas.getBoundingClientRect();
+    // Account for zoom scale when calculating canvas coordinates
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) / this.scale,
+      y: (e.clientY - rect.top) / this.scale,
     };
   }
 
   private onMouseDown(e: MouseEvent): void {
+    // Pan with middle mouse button or space key
+    if (e.button === 1 || this.spaceHeld) {
+      e.preventDefault();
+      this.startPan(e);
+      return;
+    }
     if (this.annotationMode) return;
     const point = this.getPoint(e);
     this.startDrawing(point);
@@ -745,6 +874,10 @@ class ShowMeCanvas {
   }
 
   private onMouseMove(e: MouseEvent): void {
+    if (this.isPanning) {
+      this.doPan(e);
+      return;
+    }
     if (!this.isDrawing || this.annotationMode) return;
     const point = this.getPoint(e);
     this.draw(point);
@@ -775,6 +908,10 @@ class ShowMeCanvas {
   }
 
   private onMouseUp(): void {
+    if (this.isPanning) {
+      this.endPan();
+      return;
+    }
     if (!this.isDrawing) return;
     this.isDrawing = false;
 
@@ -1538,6 +1675,21 @@ class ShowMeCanvas {
       } else if (e.key === "y") {
         e.preventDefault();
         this.redo();
+      } else if (e.key === "=" || e.key === "+") {
+        e.preventDefault();
+        this.zoomIn();
+      } else if (e.key === "-") {
+        e.preventDefault();
+        this.zoomOut();
+      } else if (e.key === "0") {
+        e.preventDefault();
+        this.zoomReset();
+      }
+    } else if (e.key === " " && !this.spaceHeld) {
+      e.preventDefault();
+      this.spaceHeld = true;
+      if (this.canvasWrapper) {
+        this.canvasWrapper.style.cursor = "grab";
       }
     } else {
       switch (e.key.toLowerCase()) {
@@ -1587,6 +1739,23 @@ class ShowMeCanvas {
           this.renderAnnotations();
           break;
       }
+    }
+  }
+
+  private onKeyUp(e: KeyboardEvent): void {
+    if (e.key === " ") {
+      this.spaceHeld = false;
+      if (this.canvasWrapper && !this.isPanning) {
+        this.canvasWrapper.style.cursor = "";
+      }
+    }
+  }
+
+  private onWheel(e: WheelEvent): void {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -this.scaleStep : this.scaleStep;
+      this.setZoom(this.scale + delta);
     }
   }
 
