@@ -1,0 +1,17 @@
+{
+  "hooks": [
+    {
+      "matcher": "Skill",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bun run $SHOWME_DIR/server/index.ts",
+          "timeout": 300000,
+          "matchInput": {
+            "skill": "showme"
+          }
+        }
+      ]
+    }
+  ]
+}

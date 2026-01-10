@@ -1,0 +1,780 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ============================================
+   TOOLBAR
+   ============================================ */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+  flex-wrap: wrap;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.divider {
+  width: 1px;
+  height: 28px;
+  background: #0f3460;
+}
+
+.tool-btn {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.tool-btn:hover {
+  background: #0f3460;
+  color: #fff;
+}
+
+.tool-btn.active {
+  background: #e94560;
+  color: #fff;
+}
+
+/* Annotation Tools */
+.annotation-tools {
+  gap: 4px;
+}
+
+.annotation-toggle {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.annotation-toggle.active {
+  background: #ff6b35;
+  color: #fff;
+}
+
+.ann-tool-btn {
+  width: 34px;
+  height: 34px;
+  border: 2px solid #ff6b35;
+  border-radius: 6px;
+  background: transparent;
+  color: #ff6b35;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.ann-tool-btn:hover {
+  opacity: 1;
+}
+
+.ann-tool-btn.active {
+  background: #ff6b35;
+  color: #fff;
+  opacity: 1;
+}
+
+.action-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #0f3460;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.action-btn:hover {
+  background: #1a4a7a;
+}
+
+#color-picker {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+}
+
+#brush-size {
+  width: 80px;
+  cursor: pointer;
+}
+
+#brush-size-label {
+  font-size: 11px;
+  color: #888;
+  min-width: 32px;
+}
+
+/* ============================================
+   WORKSPACE LAYOUT
+   ============================================ */
+
+.workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ============================================
+   PAGE SIDEBAR (LEFT)
+   ============================================ */
+
+.page-sidebar {
+  width: 160px;
+  min-width: 160px;
+  background: #16213e;
+  border-right: 1px solid #0f3460;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #0f3460;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.add-page-wrapper {
+  position: relative;
+}
+
+.add-page-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: #e94560;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.add-page-btn:hover {
+  background: #ff6b6b;
+}
+
+.add-page-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 100;
+  min-width: 120px;
+}
+
+.add-page-menu.hidden {
+  display: none;
+}
+
+.add-page-option {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #eee;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-page-option:hover {
+  background: #0f3460;
+}
+
+.page-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.page-item {
+  background: #1a1a2e;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.page-item:hover {
+  border-color: #0f3460;
+}
+
+.page-item.active {
+  border-color: #e94560;
+}
+
+.page-thumbnail {
+  background: #fff;
+  border-radius: 4px 4px 0 0;
+  overflow: hidden;
+}
+
+.thumbnail-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.page-info {
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-name {
+  font-size: 11px;
+  color: #ccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
+.page-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.page-item:hover .page-actions {
+  opacity: 1;
+}
+
+.page-action-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.page-action-btn:hover {
+  background: #0f3460;
+  color: #fff;
+}
+
+.page-action-btn.delete-btn:hover {
+  background: #e94560;
+}
+
+/* ============================================
+   CANVAS CONTAINER
+   ============================================ */
+
+.canvas-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #1a1a2e;
+  overflow: auto;
+  position: relative;
+}
+
+.canvas-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+#canvas {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  cursor: crosshair;
+  display: block;
+}
+
+#annotation-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  cursor: crosshair;
+}
+
+.canvas-wrapper.annotation-mode #annotation-canvas {
+  pointer-events: auto;
+}
+
+/* ============================================
+   FEEDBACK SIDEBAR (RIGHT)
+   ============================================ */
+
+.feedback-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background: #16213e;
+  border-left: 1px solid #0f3460;
+  display: flex;
+  flex-direction: column;
+  transition:
+    width 0.3s,
+    min-width 0.3s,
+    margin-right 0.3s;
+}
+
+.feedback-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #0f3460;
+}
+
+.sidebar-header h2 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sidebar-toggle {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sidebar-toggle:hover {
+  background: #0f3460;
+  color: #fff;
+}
+
+.feedback-sidebar.collapsed .sidebar-toggle svg {
+  transform: rotate(180deg);
+}
+
+.annotations-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  text-align: center;
+  padding: 30px 16px;
+}
+
+.empty-state svg {
+  opacity: 0.4;
+  margin-bottom: 12px;
+  color: #ff6b35;
+}
+
+.empty-state p {
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #888;
+}
+
+.empty-state span {
+  font-size: 11px;
+}
+
+/* Annotation Items */
+.annotation-item {
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.annotation-item:hover {
+  border-color: #ff6b35;
+}
+
+.annotation-item.selected {
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+}
+
+.annotation-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.annotation-number {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ff6b35;
+  cursor: pointer;
+}
+
+.annotation-number:hover {
+  text-decoration: underline;
+}
+
+.annotation-type {
+  font-size: 11px;
+  color: #888;
+  flex: 1;
+}
+
+.annotation-delete-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.annotation-delete-btn:hover {
+  background: #e94560;
+  color: #fff;
+}
+
+.feedback-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  background: #16213e;
+  color: #fff;
+  font-size: 12px;
+  resize: none;
+  font-family: inherit;
+  min-height: 60px;
+}
+
+.feedback-input::placeholder {
+  color: #666;
+}
+
+.feedback-input:focus {
+  outline: none;
+  border-color: #00d4ff;
+}
+
+/* ============================================
+   BOTTOM BAR
+   ============================================ */
+
+.bottom-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #16213e;
+  border-top: 1px solid #0f3460;
+}
+
+#notes {
+  flex: 1;
+  height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 13px;
+  resize: none;
+}
+
+#notes::placeholder {
+  color: #666;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.cancel-btn {
+  padding: 10px 20px;
+  border: 1px solid #666;
+  border-radius: 8px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  border-color: #e94560;
+  color: #e94560;
+}
+
+.send-btn {
+  padding: 10px 28px;
+  border: none;
+  border-radius: 8px;
+  background: #e94560;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.send-btn:hover {
+  background: #ff6b6b;
+}
+
+/* ============================================
+   MODALS
+   ============================================ */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  display: flex;
+  gap: 10px;
+  padding: 16px;
+  background: #16213e;
+  border-radius: 12px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content input {
+  padding: 10px 14px;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 14px;
+  width: 260px;
+}
+
+.modal-content button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #e94560;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* ============================================
+   POPOVER
+   ============================================ */
+
+.feedback-popover {
+  position: fixed;
+  z-index: 1000;
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.feedback-popover.hidden {
+  display: none;
+}
+
+.popover-content {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid #0f3460;
+}
+
+.popover-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #eee;
+}
+
+.popover-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popover-close:hover {
+  color: #e94560;
+}
+
+.popover-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  resize: none;
+  font-family: inherit;
+}
+
+.popover-textarea::placeholder {
+  color: #666;
+}
+
+.popover-textarea:focus {
+  outline: none;
+}
+
+.popover-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px 12px;
+}
+
+.popover-hint {
+  font-size: 10px;
+  color: #666;
+}
+
+.popover-save-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #e94560;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.popover-save-btn:hover {
+  background: #ff6b6b;
+}
+
+/* ============================================
+   SCROLLBARS
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0f3460;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1a4a7a;
+}

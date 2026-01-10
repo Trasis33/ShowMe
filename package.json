@@ -1,0 +1,17 @@
+{
+  "name": "showme",
+  "version": "0.1.0",
+  "description": "Visual mockup to code tool for Claude Code",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "bun run server/index.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vite": "^5.4.0"
+  }
+}

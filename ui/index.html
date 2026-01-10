@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShowMe - Visual Mockup</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="toolbar">
+        <!-- Drawing Tools -->
+        <div class="tool-group">
+          <button id="tool-pen" class="tool-btn active" title="Pen (P)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+              <path d="M2 2l7.586 7.586"/>
+            </svg>
+          </button>
+          <button id="tool-rect" class="tool-btn" title="Rectangle (R)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+            </svg>
+          </button>
+          <button id="tool-circle" class="tool-btn" title="Circle (C)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+            </svg>
+          </button>
+          <button id="tool-arrow" class="tool-btn" title="Arrow (A)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+          <button id="tool-text" class="tool-btn" title="Text (T)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 7 4 4 20 4 20 7"/>
+              <line x1="9" y1="20" x2="15" y2="20"/>
+              <line x1="12" y1="4" x2="12" y2="20"/>
+            </svg>
+          </button>
+          <button id="tool-eraser" class="tool-btn" title="Eraser (E)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 20H7L3 16c-.6-.6-.6-1.5 0-2.1l10-10c.6-.6 1.5-.6 2.1 0l6.9 6.9c.6.6.6 1.5 0 2.1L15 20"/>
+              <path d="M6 11l4 4"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Annotation Tools -->
+        <div class="tool-group annotation-tools">
+          <button id="toggle-annotation-mode" class="action-btn annotation-toggle" title="Toggle Annotation Mode (M)">
+            Annotate
+          </button>
+          <button id="tool-pin" class="ann-tool-btn" title="Pin (1)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="10" r="6"/>
+              <path d="M12 16v5"/>
+            </svg>
+          </button>
+          <button id="tool-area" class="ann-tool-btn" title="Area (2)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/>
+            </svg>
+          </button>
+          <button id="tool-ann-arrow" class="ann-tool-btn" title="Arrow (3)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="19" x2="19" y2="5"/>
+              <polyline points="10 5 19 5 19 14"/>
+            </svg>
+          </button>
+          <button id="tool-highlight" class="ann-tool-btn" title="Highlight (4)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M4 16c2-2 6-6 8-8" stroke-linecap="round" opacity="0.6"/>
+              <path d="M8 20c2-2 6-6 8-8" stroke-linecap="round" opacity="0.6"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Color & Size -->
+        <div class="tool-group">
+          <input type="color" id="color-picker" value="#000000" title="Color" />
+          <input type="range" id="brush-size" min="1" max="50" value="3" title="Brush Size" />
+          <span id="brush-size-label">3px</span>
+        </div>
+
+        <!-- Actions -->
+        <div class="tool-group">
+          <button id="btn-undo" class="action-btn" title="Undo (Ctrl+Z)">Undo</button>
+          <button id="btn-redo" class="action-btn" title="Redo (Ctrl+Y)">Redo</button>
+          <button id="btn-clear" class="action-btn" title="Clear All">Clear</button>
+        </div>
+
+        <div class="tool-group">
+          <button id="btn-import" class="action-btn" title="Import Image">Import</button>
+          <input type="file" id="file-input" accept="image/*" hidden />
+        </div>
+      </header>
+
+      <div class="workspace">
+        <!-- Page Sidebar (Left) -->
+        <aside id="page-sidebar" class="page-sidebar">
+          <div class="page-sidebar-header">
+            <span>Pages</span>
+            <div class="add-page-wrapper">
+              <button id="btn-add-page" class="add-page-btn" title="Add Page">+</button>
+              <div id="add-page-menu" class="add-page-menu hidden">
+                <button id="add-blank-page" class="add-page-option">Blank Page</button>
+                <button id="add-image-page" class="add-page-option">From Image</button>
+                <input type="file" id="page-file-input" accept="image/*" hidden />
+              </div>
+            </div>
+          </div>
+          <div id="page-list" class="page-list">
+            <!-- Page thumbnails will be inserted here -->
+          </div>
+        </aside>
+
+        <!-- Main Canvas -->
+        <main class="canvas-container">
+          <div class="canvas-wrapper">
+            <canvas id="canvas"></canvas>
+            <canvas id="annotation-canvas"></canvas>
+          </div>
+        </main>
+
+        <!-- Feedback Sidebar (Right) -->
+        <aside id="feedback-sidebar" class="feedback-sidebar">
+          <div class="sidebar-header">
+            <h2>Annotations</h2>
+            <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle Sidebar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+          </div>
+          <div id="annotations-list" class="annotations-list">
+            <div class="empty-state" id="empty-annotations">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="10" r="6"/>
+                <path d="M12 16v5"/>
+              </svg>
+              <p>No annotations yet</p>
+              <span>Use annotation tools to add feedback markers</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="bottom-bar">
+        <textarea id="notes" placeholder="Add general notes for Claude (optional)..."></textarea>
+        <div class="actions">
+          <button id="btn-cancel" class="cancel-btn">Cancel</button>
+          <button id="btn-send" class="send-btn">Send to Claude</button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Text Input Modal -->
+    <div id="text-input-modal" class="modal hidden">
+      <div class="modal-content">
+        <input type="text" id="text-input" placeholder="Enter text..." />
+        <button id="text-submit">Add</button>
+      </div>
+    </div>
+
+    <!-- Feedback Popover -->
+    <div id="feedback-popover" class="feedback-popover hidden">
+      <div class="popover-content">
+        <div class="popover-header">
+          <span class="popover-title">Annotation Feedback</span>
+          <button id="popover-close" class="popover-close">&times;</button>
+        </div>
+        <textarea id="popover-feedback" class="popover-textarea" placeholder="Add feedback for this annotation..." rows="3"></textarea>
+        <div class="popover-footer">
+          <span class="popover-hint">Escape to close</span>
+          <button id="popover-save" class="popover-save-btn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

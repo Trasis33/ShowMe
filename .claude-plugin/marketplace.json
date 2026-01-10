@@ -1,0 +1,10 @@
+{
+  "name": "showme",
+  "displayName": "ShowMe",
+  "description": "Visual mockup canvas for Claude Code - draw what you want and let AI generate code",
+  "version": "0.1.0",
+  "author": "ShowMe",
+  "homepage": "https://github.com/showme/showme",
+  "keywords": ["visual", "mockup", "drawing", "canvas", "ui", "design"],
+  "license": "MIT"
+}
