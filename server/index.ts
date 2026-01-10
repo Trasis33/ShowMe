@@ -292,19 +292,24 @@ async function main() {
             },
           );
         }
-        console.error("[ShowMe] Payload validated, resolving promise");
+        console.error("[ShowMe] Payload validated, sending response first");
 
         const payload = rawPayload;
 
-        resolvePromise({
-          hookSpecificOutput: {
-            decision: { behavior: "allow" },
-            showme: {
-              pages: payload.pages,
-              globalNotes: payload.globalNotes,
+        // Send response FIRST, then resolve promise after a short delay
+        // This prevents race condition where process.exit() runs before response is sent
+        setTimeout(() => {
+          console.error("[ShowMe] Now resolving promise");
+          resolvePromise({
+            hookSpecificOutput: {
+              decision: { behavior: "allow" },
+              showme: {
+                pages: payload.pages,
+                globalNotes: payload.globalNotes,
+              },
             },
-          },
-        });
+          });
+        }, 100);
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { "Content-Type": "application/json" },
@@ -312,14 +317,17 @@ async function main() {
       }
 
       if (url.pathname === "/api/cancel" && req.method === "POST") {
-        resolvePromise({
-          hookSpecificOutput: {
-            decision: {
-              behavior: "deny",
-              message: "User cancelled ShowMe",
+        // Send response FIRST, then resolve promise after a short delay
+        setTimeout(() => {
+          resolvePromise({
+            hookSpecificOutput: {
+              decision: {
+                behavior: "deny",
+                message: "User cancelled ShowMe",
+              },
             },
-          },
-        });
+          });
+        }, 100);
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { "Content-Type": "application/json" },
