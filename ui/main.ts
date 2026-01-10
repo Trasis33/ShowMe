@@ -625,6 +625,27 @@ class ShowMeCanvas {
       if (e.key === "Escape") this.hideTextModal();
     });
 
+    // Annotation feedback modal
+    document
+      .getElementById("annotation-modal-save")!
+      .addEventListener("click", () => this.saveAnnotationFeedback());
+    document
+      .getElementById("annotation-modal-skip")!
+      .addEventListener("click", () => this.skipAnnotationFeedback());
+    document
+      .getElementById("annotation-modal-close")!
+      .addEventListener("click", () => this.hideAnnotationFeedbackModal());
+    document
+      .getElementById("annotation-feedback-input")!
+      .addEventListener("keydown", (e) => {
+        if (e.key === "Escape") this.hideAnnotationFeedbackModal();
+        // Ctrl+Enter to save
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          this.saveAnnotationFeedback();
+        }
+      });
+
     // Popover
     document
       .getElementById("popover-close")!
@@ -1098,16 +1119,8 @@ class ShowMeCanvas {
     this.renderFeedbackSidebar();
     this.saveState();
 
-    // Auto-focus the feedback input in sidebar for the new annotation
-    setTimeout(() => {
-      const item = document.querySelector(
-        `.annotation-item[data-annotation-id="${ann.id}"] .feedback-input`,
-      ) as HTMLTextAreaElement | null;
-      if (item) {
-        item.focus();
-        item.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    }, 50);
+    // Show feedback modal for the new annotation
+    this.showAnnotationFeedbackModal(ann);
   }
 
   private calculatePathBounds(points: Point[]): BoundingBox {
@@ -1224,6 +1237,55 @@ class ShowMeCanvas {
       this.saveState();
     }
     this.hideTextModal();
+  }
+
+  // ============================================
+  // ANNOTATION FEEDBACK MODAL
+  // ============================================
+
+  private currentFeedbackAnnotationId: string | null = null;
+
+  private showAnnotationFeedbackModal(ann: Annotation): void {
+    this.currentFeedbackAnnotationId = ann.id;
+    const modal = document.getElementById("annotation-feedback-modal")!;
+    const title = document.getElementById("annotation-modal-title")!;
+    const input = document.getElementById(
+      "annotation-feedback-input",
+    ) as HTMLTextAreaElement;
+
+    title.textContent = `Annotation #${ann.number}`;
+    input.value = ann.feedback || "";
+    modal.classList.remove("hidden");
+    input.focus();
+  }
+
+  private hideAnnotationFeedbackModal(): void {
+    document
+      .getElementById("annotation-feedback-modal")!
+      .classList.add("hidden");
+    this.currentFeedbackAnnotationId = null;
+  }
+
+  private saveAnnotationFeedback(): void {
+    const input = document.getElementById(
+      "annotation-feedback-input",
+    ) as HTMLTextAreaElement;
+    const feedback = input.value.trim();
+
+    if (this.currentFeedbackAnnotationId) {
+      const ann = this.currentPage.annotations.find(
+        (a) => a.id === this.currentFeedbackAnnotationId,
+      );
+      if (ann) {
+        ann.feedback = feedback;
+        this.renderFeedbackSidebar();
+      }
+    }
+    this.hideAnnotationFeedbackModal();
+  }
+
+  private skipAnnotationFeedback(): void {
+    this.hideAnnotationFeedbackModal();
   }
 
   // ============================================
@@ -1714,6 +1776,7 @@ class ShowMeCanvas {
     // Always allow Escape to close modals
     if (e.key === "Escape") {
       this.hideTextModal();
+      this.hideAnnotationFeedbackModal();
       this.hidePopover();
       this.selectedAnnotationId = null;
       this.renderAnnotations();

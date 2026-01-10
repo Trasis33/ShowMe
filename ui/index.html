@@ -211,6 +211,21 @@
       </div>
     </div>
 
+    <!-- Annotation Feedback Modal -->
+    <div id="annotation-feedback-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Add annotation feedback">
+      <div class="modal-content annotation-modal-content">
+        <div class="annotation-modal-header">
+          <span id="annotation-modal-title">Annotation #1</span>
+          <button id="annotation-modal-close" class="modal-close-btn" aria-label="Close">&times;</button>
+        </div>
+        <textarea id="annotation-feedback-input" placeholder="Add feedback for Claude about this component..." rows="4" aria-label="Feedback text"></textarea>
+        <div class="annotation-modal-footer">
+          <button id="annotation-modal-skip" class="modal-btn-secondary">Skip</button>
+          <button id="annotation-modal-save" class="modal-btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Feedback Popover -->
     <div id="feedback-popover" class="feedback-popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title-text">
       <div class="popover-content">
