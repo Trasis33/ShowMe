@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import { existsSync } from "fs";
 import { stat, writeFile, mkdir } from "fs/promises";
 import { join, resolve } from "path";
-import { tmpdir } from "os";
+import { tmpdir, release } from "os";
 
 // Auto-build if dist doesn't exist
 async function ensureBuild(): Promise<void> {
@@ -220,7 +220,17 @@ async function readStdin(): Promise<InputContext> {
   });
 }
 
-// Open browser cross-platform
+// Detect if running in WSL
+function isWSL(): boolean {
+  try {
+    const osRelease = release().toLowerCase();
+    return osRelease.includes("microsoft") || osRelease.includes("wsl");
+  } catch {
+    return false;
+  }
+}
+
+// Open browser cross-platform (including WSL)
 function openBrowser(url: string) {
   const platform = process.platform;
 
@@ -232,6 +242,10 @@ function openBrowser(url: string) {
     args = [url];
   } else if (platform === "win32") {
     command = "cmd";
+    args = ["/c", "start", "", url];
+  } else if (isWSL()) {
+    // WSL: use cmd.exe to open in Windows browser
+    command = "cmd.exe";
     args = ["/c", "start", "", url];
   } else {
     // Linux and others
