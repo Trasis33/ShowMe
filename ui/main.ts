@@ -66,13 +66,17 @@ interface PageSubmitData {
 // ============================================
 
 function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
 function escapeHtml(str: string): string {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+function distanceBetweenPoints(a: Point, b: Point): number {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
 // ============================================
@@ -317,7 +321,7 @@ class HitTester {
 
     switch (ann.type) {
       case "pin":
-        return this.distanceTo(point, ann.position) <= this.PIN_RADIUS;
+        return distanceBetweenPoints(point, ann.position) <= this.PIN_RADIUS;
       case "area":
         return true; // Already passed bounds
       case "arrow":
@@ -338,10 +342,6 @@ class HitTester {
       point.y >= bounds.y - 5 &&
       point.y <= bounds.y + bounds.height + 5
     );
-  }
-
-  private distanceTo(a: Point, b: Point): number {
-    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
   }
 
   private onLine(point: Point, start: Point, end: Point): boolean {
@@ -421,6 +421,10 @@ class ShowMeCanvas {
 
   // Resize debounce
   private resizeTimeout: number | null = null;
+
+  // Animation timeouts
+  private flashTimeoutId: number | null = null;
+  private errorToastTimeout: number | null = null;
 
   // Zoom and pan state
   private scale = 1.0;
@@ -1061,7 +1065,7 @@ class ShowMeCanvas {
         break;
 
       case "arrow":
-        if (this.distanceBetween(this.startPoint, endPoint) < 20) return; // Too short
+        if (distanceBetweenPoints(this.startPoint, endPoint) < 20) return; // Too short
         ann.startPoint = { ...this.startPoint };
         ann.endPoint = { ...endPoint };
         ann.position = {
@@ -1093,10 +1097,6 @@ class ShowMeCanvas {
     this.renderAnnotations();
     this.renderFeedbackSidebar();
     this.saveState();
-  }
-
-  private distanceBetween(a: Point, b: Point): number {
-    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
   }
 
   private calculatePathBounds(points: Point[]): BoundingBox {
@@ -1233,11 +1233,14 @@ class ShowMeCanvas {
     this.currentPage.undoStack.push({ imageData, annotations });
     this.currentPage.redoStack = [];
 
-    if (this.currentPage.undoStack.length > 50) {
+    // Limit undo stack to prevent memory issues (each state ~4MB for 1200x800 canvas)
+    const MAX_UNDO_STATES = 15;
+    while (this.currentPage.undoStack.length > MAX_UNDO_STATES) {
       this.currentPage.undoStack.shift();
     }
 
     this.updatePageThumbnail(this.currentPageIndex);
+    this.updateActionButtonStates();
   }
 
   private restoreLastState(): void {
@@ -1261,6 +1264,7 @@ class ShowMeCanvas {
       this.renderAnnotations();
       this.renderFeedbackSidebar();
       this.updatePageThumbnail(this.currentPageIndex);
+      this.updateActionButtonStates();
     }
   }
 
@@ -1275,7 +1279,20 @@ class ShowMeCanvas {
       this.renderAnnotations();
       this.renderFeedbackSidebar();
       this.updatePageThumbnail(this.currentPageIndex);
+      this.updateActionButtonStates();
     }
+  }
+
+  private updateActionButtonStates(): void {
+    const undoBtn = document.getElementById("btn-undo") as HTMLButtonElement;
+    const redoBtn = document.getElementById("btn-redo") as HTMLButtonElement;
+
+    // Undo requires more than 1 state (current state counts as 1)
+    const canUndo = this.currentPage.undoStack.length > 1;
+    const canRedo = this.currentPage.redoStack.length > 0;
+
+    undoBtn.disabled = !canUndo;
+    redoBtn.disabled = !canRedo;
   }
 
   private clear(): void {
@@ -1508,17 +1525,18 @@ class ShowMeCanvas {
       item.className = `annotation-item ${ann.id === this.selectedAnnotationId ? "selected" : ""}`;
       item.dataset.annotationId = ann.id;
 
-      const typeLabel = {
+      const typeLabels: Record<string, string> = {
         pin: "Pin",
         area: "Area",
         arrow: "Arrow",
         highlight: "Highlight",
-      }[ann.type];
+      };
+      const typeLabel = typeLabels[ann.type] ?? "Unknown";
 
       item.innerHTML = `
         <div class="annotation-header">
-          <span class="annotation-number" title="Click to highlight on canvas">#${ann.number}</span>
-          <span class="annotation-type">${typeLabel}</span>
+          <span class="annotation-number" title="Click to highlight on canvas">#${escapeHtml(String(ann.number))}</span>
+          <span class="annotation-type">${escapeHtml(typeLabel)}</span>
           <button class="annotation-delete-btn" title="Delete annotation" aria-label="Delete annotation">×</button>
         </div>
         <textarea class="feedback-input" placeholder="Click to add feedback for Claude..." aria-label="Feedback for annotation ${ann.number}">${escapeHtml(ann.feedback)}</textarea>
@@ -1542,7 +1560,14 @@ class ShowMeCanvas {
         .querySelector(".annotation-delete-btn")
         ?.addEventListener("click", (e) => {
           e.stopPropagation();
-          this.deleteAnnotation(ann.id);
+          // Confirm before deleting if annotation has feedback
+          const hasContent = ann.feedback && ann.feedback.trim().length > 0;
+          const message = hasContent
+            ? `Delete annotation #${ann.number} with feedback? This cannot be undone.`
+            : `Delete annotation #${ann.number}?`;
+          if (confirm(message)) {
+            this.deleteAnnotation(ann.id);
+          }
         });
 
       // Feedback input
@@ -1561,20 +1586,37 @@ class ShowMeCanvas {
   }
 
   private focusOnAnnotation(ann: Annotation): void {
-    // Visual flash on canvas
-    const ctx = this.annotationCanvas.getContext("2d")!;
+    // Cancel any existing flash animation
+    if (this.flashTimeoutId !== null) {
+      clearTimeout(this.flashTimeoutId);
+      this.flashTimeoutId = null;
+    }
+
+    const ctx = this.annotationCanvas.getContext("2d");
+    if (!ctx) return;
+
     const originalAlpha = ctx.globalAlpha;
+    const annotationId = ann.id;
 
     let flashes = 0;
     const flash = () => {
+      // Check if annotation still exists
+      if (!this.currentPage.annotations.some((a) => a.id === annotationId)) {
+        ctx.globalAlpha = originalAlpha;
+        this.renderAnnotations();
+        this.flashTimeoutId = null;
+        return;
+      }
+
       ctx.globalAlpha = flashes % 2 === 0 ? 0.5 : 1;
       this.renderAnnotations();
       flashes++;
       if (flashes < 4) {
-        setTimeout(flash, 150);
+        this.flashTimeoutId = window.setTimeout(flash, 150);
       } else {
         ctx.globalAlpha = originalAlpha;
         this.renderAnnotations();
+        this.flashTimeoutId = null;
       }
     };
     flash();
@@ -1753,6 +1795,12 @@ class ShowMeCanvas {
   // ============================================
 
   private showError(message: string): void {
+    // Clear any pending timeout
+    if (this.errorToastTimeout !== null) {
+      clearTimeout(this.errorToastTimeout);
+      this.errorToastTimeout = null;
+    }
+
     const existing = document.getElementById("error-toast");
     if (existing) existing.remove();
 
@@ -1766,11 +1814,18 @@ class ShowMeCanvas {
     `;
 
     toast.querySelector(".error-dismiss")!.addEventListener("click", () => {
+      if (this.errorToastTimeout !== null) {
+        clearTimeout(this.errorToastTimeout);
+        this.errorToastTimeout = null;
+      }
       toast.remove();
     });
 
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
+    this.errorToastTimeout = window.setTimeout(() => {
+      toast.remove();
+      this.errorToastTimeout = null;
+    }, 5000);
   }
 
   private async sendToServer(): Promise<void> {

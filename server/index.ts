@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import { existsSync } from "fs";
+import { stat } from "fs/promises";
 import { join, resolve } from "path";
 
 // Auto-build if dist doesn't exist
@@ -7,24 +8,37 @@ async function ensureBuild(): Promise<void> {
   const projectRoot = join(import.meta.dir, "..");
   const distIndex = join(projectRoot, "dist", "index.html");
 
-  if (!existsSync(distIndex)) {
-    console.error("Building UI (first run)...");
+  // Use async stat check instead of blocking existsSync
+  try {
+    await stat(distIndex);
+    return; // File exists, no build needed
+  } catch {
+    // File doesn't exist, need to build
+  }
 
-    const exitCode = await new Promise<number>((resolve, reject) => {
-      const child = spawn("bun", ["run", "build"], {
-        cwd: projectRoot,
-        stdio: "inherit",
-      });
+  console.error("Building UI (first run)...");
 
-      child.on("error", reject);
-      child.on("close", (code) => resolve(code ?? 1));
+  const buildPromise = new Promise<number>((resolve, reject) => {
+    const child = spawn("bun", ["run", "build"], {
+      cwd: projectRoot,
+      stdio: "pipe", // Non-blocking
     });
 
-    if (exitCode !== 0) {
-      throw new Error("Build failed");
-    }
-    console.error("Build complete.");
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code ?? 1));
+  });
+
+  // Add timeout to prevent hook timeout
+  const timeoutPromise = new Promise<number>((_, reject) => {
+    setTimeout(() => reject(new Error("Build timeout after 30s")), 30000);
+  });
+
+  const exitCode = await Promise.race([buildPromise, timeoutPromise]);
+
+  if (exitCode !== 0) {
+    throw new Error("Build failed");
   }
+  console.error("Build complete.");
 }
 
 interface InputContext {
@@ -64,20 +78,54 @@ interface SubmitPayload {
   globalNotes?: string;
 }
 
+// Validation limits to prevent abuse
+const MAX_PAGES = 50;
+const MAX_ANNOTATIONS_PER_PAGE = 100;
+const MAX_FEEDBACK_LENGTH = 10000;
+const MAX_GLOBAL_NOTES_LENGTH = 50000;
+const MAX_PAGE_NAME_LENGTH = 200;
+const VALID_ANNOTATION_TYPES = ["pin", "area", "arrow", "highlight"];
+
 function validateSubmitPayload(data: unknown): data is SubmitPayload {
   if (typeof data !== "object" || data === null) return false;
   const payload = data as Record<string, unknown>;
   if (payload.action !== "submit") return false;
   if (!Array.isArray(payload.pages)) return false;
 
+  // Limit number of pages
+  if (payload.pages.length > MAX_PAGES) return false;
+
+  // Validate globalNotes if present
+  if (payload.globalNotes !== undefined) {
+    if (typeof payload.globalNotes !== "string") return false;
+    if (payload.globalNotes.length > MAX_GLOBAL_NOTES_LENGTH) return false;
+  }
+
   for (const page of payload.pages) {
     if (typeof page !== "object" || page === null) return false;
     const p = page as Record<string, unknown>;
     if (typeof p.id !== "string" || typeof p.name !== "string") return false;
+    if (p.name.length > MAX_PAGE_NAME_LENGTH) return false;
     if (typeof p.image !== "string") return false;
     if (typeof p.width !== "number" || typeof p.height !== "number")
       return false;
     if (!Array.isArray(p.annotations)) return false;
+
+    // Limit annotations per page
+    if (p.annotations.length > MAX_ANNOTATIONS_PER_PAGE) return false;
+
+    // Validate each annotation
+    for (const ann of p.annotations) {
+      if (typeof ann !== "object" || ann === null) return false;
+      const a = ann as Record<string, unknown>;
+      if (typeof a.type !== "string") return false;
+      if (!VALID_ANNOTATION_TYPES.includes(a.type)) return false;
+      if (
+        typeof a.feedback === "string" &&
+        a.feedback.length > MAX_FEEDBACK_LENGTH
+      )
+        return false;
+    }
   }
   return true;
 }
@@ -206,6 +254,18 @@ async function main() {
     port,
     async fetch(req) {
       const url = new URL(req.url);
+
+      // CSRF protection for POST requests - only allow requests from same origin
+      if (req.method === "POST") {
+        const origin = req.headers.get("origin");
+        const expectedOrigin = `http://localhost:${port}`;
+        if (origin && origin !== expectedOrigin) {
+          return new Response(JSON.stringify({ error: "Invalid origin" }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
 
       // API endpoints
       if (url.pathname === "/api/submit" && req.method === "POST") {
