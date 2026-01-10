@@ -15,89 +15,41 @@ The command will:
 1. Open a browser with a multi-page drawing canvas
 2. Let the user create pages (blank or from images), draw, and add annotations
 3. Output JSON with structured page and annotation data
+4. **Images are saved to temp files** (paths provided in `imagePath` field)
 
 ---
 
 ## Processing the Output
 
-**CRITICAL:**
+The hook output contains structured JSON with:
 
-- DO NOT try to read the raw output file directly - it contains base64 images and will exceed token limits
-- ALWAYS use the extraction script below to process the output
-- The script saves images to `/tmp/` and prints a text summary
-
-**IMPORTANT:** The output may contain MULTIPLE pages. You MUST process ALL of them.
-
-The output file path will be in the tool result. Pass it to this script:
-
-```bash
-python3 << 'EOF'
-import sys, json, base64
-
-# Read from file path (first argument) or use the standard Claude Code output location
-output_file = sys.argv[1] if len(sys.argv) > 1 else None
-
-if output_file:
-    with open(output_file, 'r') as f:
-        # Read only first line (JSON data, ignore any trailing content)
-        data = json.loads(f.readline())
-else:
-    data = json.load(sys.stdin)
-
-showme = data.get('hookSpecificOutput', {}).get('showme', {})
-pages = showme.get('pages', [])
-global_notes = showme.get('globalNotes', '')
-
-print('=' * 60)
-print(f'SHOWME OUTPUT: {len(pages)} page(s)')
-print('=' * 60)
-
-if global_notes:
-    print(f'\nGLOBAL NOTES: {global_notes}\n')
-
-for i, page in enumerate(pages):
-    img_data = page.get('image', '')
-    filename = f'/tmp/showme-page-{i+1}.png'
-
-    if img_data and ',' in img_data:
-        with open(filename, 'wb') as f:
-            f.write(base64.b64decode(img_data.split(',')[1]))
-        saved = f'saved to {filename}'
-    else:
-        saved = '(no image)'
-
-    anns = page.get('annotations', [])
-    w, h = page.get('width', 0), page.get('height', 0)
-
-    print(f"\nPage {i+1}: \"{page.get('name', 'Untitled')}\" ({w}x{h})")
-    print(f"  Image: {saved}")
-    print(f"  Annotations: {len(anns)}")
-
-    for ann in anns:
-        b = ann.get('bounds', {})
-        coord = f"({b.get('x', 0)}, {b.get('y', 0)})"
-        if b.get('width') and b.get('height'):
-            coord += f" {b.get('width')}x{b.get('height')}"
-
-        feedback = ann.get('feedback', '')
-        print(f"    #{ann.get('number', '?')} [{ann.get('type', '?')}] at {coord}")
-        if feedback:
-            print(f"       → \"{feedback}\"")
-
-print('\n' + '=' * 60)
-print('ACTION: Read each /tmp/showme-page-N.png to see the visuals')
-print('=' * 60)
-EOF
+```json
+{
+  "hookSpecificOutput": {
+    "decision": { "behavior": "allow" },
+    "showme": {
+      "pages": [
+        {
+          "id": "...",
+          "name": "Page 1",
+          "imagePath": "/tmp/showme-images/page-id.png",
+          "width": 1200,
+          "height": 800,
+          "annotations": [...]
+        }
+      ],
+      "globalNotes": "..."
+    }
+  }
+}
 ```
 
----
+### Steps to Process:
 
-## After Running the Script
-
-1. **Read the summary output** - Understand how many pages, what annotations exist
-2. **Read EACH page image** - `/tmp/showme-page-1.png`, `/tmp/showme-page-2.png`, etc.
-3. **Cross-reference annotations** - Each numbered marker has feedback text
-4. **Address globalNotes** - This contains overall context or questions
+1. **Parse the JSON output** - Extract the `showme` object
+2. **Read each page image** - Use the `imagePath` field to read the PNG file
+3. **Review annotations** - Each has coordinates and user feedback
+4. **Address globalNotes** - Overall context or questions from the user
 5. **Acknowledge each annotation** - Let the user know you saw their specific feedback
 
 ---
@@ -122,33 +74,44 @@ Annotations are coordinate-tracked markers. Each has:
 
 ---
 
-## Example Output
+## Example Output Processing
 
+Given this output:
+
+```json
+{
+  "hookSpecificOutput": {
+    "decision": { "behavior": "allow" },
+    "showme": {
+      "pages": [
+        {
+          "id": "abc123",
+          "name": "Login Screen",
+          "imagePath": "/tmp/showme-images/abc123.png",
+          "width": 800,
+          "height": 600,
+          "annotations": [
+            {
+              "id": "ann1",
+              "type": "pin",
+              "number": 1,
+              "bounds": { "x": 452, "y": 128, "width": 28, "height": 28 },
+              "feedback": "This button should be blue, not gray"
+            }
+          ]
+        }
+      ],
+      "globalNotes": "Please fix the login button styling"
+    }
+  }
+}
 ```
-============================================================
-SHOWME OUTPUT: 2 page(s)
-============================================================
 
-GLOBAL NOTES: Please review the login flow and fix alignment issues
+You should:
 
-Page 1: "Login Screen" (800x600)
-  Image: saved to /tmp/showme-page-1.png
-  Annotations: 2
-    #1 [pin] at (452, 128)
-       → "This button should be blue, not gray"
-    #2 [area] at (0, 480) 800x120
-       → "Footer needs more padding"
-
-Page 2: "Dashboard" (800x600)
-  Image: saved to /tmp/showme-page-2.png
-  Annotations: 1
-    #3 [arrow] at (200, 300) 150x50
-       → "Move this chart to the left sidebar"
-
-============================================================
-ACTION: Read each /tmp/showme-page-N.png to see the visuals
-============================================================
-```
+1. Read the image at `/tmp/showme-images/abc123.png`
+2. Note that annotation #1 at (452, 128) says "This button should be blue, not gray"
+3. Address the global notes about button styling
 
 ---
 
@@ -191,4 +154,4 @@ ACTION: Read each /tmp/showme-page-N.png to see the visuals
 
 ---
 
-Built with ❤️ by **Yaron - No Fluff** | [YouTube](https://www.youtube.com/channel/UCuCwMz8aMJBFfhDnYicfdjg/)
+Built with love by **Yaron - No Fluff** | [YouTube](https://www.youtube.com/channel/UCuCwMz8aMJBFfhDnYicfdjg/)

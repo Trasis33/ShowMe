@@ -212,29 +212,34 @@ _Note: Tool selection shortcuts removed to prevent conflicts when typing feedbac
 
 ## Data Structure
 
-When submitted, ShowMe sends structured data including:
+When submitted, ShowMe sends structured data to Claude Code. Images are saved to temp files (to avoid overwhelming stdout with megabytes of base64 data):
 
 ```typescript
 {
-  pages: [
-    {
-      id: string,
-      name: string,
-      image: string,  // Base64 PNG
-      width: number,
-      height: number,
-      annotations: [
+  hookSpecificOutput: {
+    decision: { behavior: "allow" },
+    showme: {
+      pages: [
         {
           id: string,
-          type: "pin" | "area" | "arrow" | "highlight",
-          number: number,
-          bounds: { x, y, width, height },
-          feedback: string
+          name: string,
+          imagePath: string,  // Path to temp PNG file
+          width: number,
+          height: number,
+          annotations: [
+            {
+              id: string,
+              type: "pin" | "area" | "arrow" | "highlight",
+              number: number,
+              bounds: { x, y, width, height },
+              feedback: string
+            }
+          ]
         }
-      ]
+      ],
+      globalNotes: string
     }
-  ],
-  globalNotes: string
+  }
 }
 ```
 

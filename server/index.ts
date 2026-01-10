@@ -1,7 +1,8 @@
 import { spawn } from "child_process";
 import { existsSync } from "fs";
-import { stat } from "fs/promises";
+import { stat, writeFile, mkdir } from "fs/promises";
 import { join, resolve } from "path";
+import { tmpdir } from "os";
 
 // Auto-build if dist doesn't exist
 async function ensureBuild(): Promise<void> {
@@ -130,6 +131,15 @@ function validateSubmitPayload(data: unknown): data is SubmitPayload {
   return true;
 }
 
+interface PageOutputData {
+  id: string;
+  name: string;
+  imagePath: string; // File path instead of base64 data
+  width: number;
+  height: number;
+  annotations: AnnotationData[];
+}
+
 interface ShowMeOutput {
   hookSpecificOutput: {
     decision: {
@@ -137,10 +147,28 @@ interface ShowMeOutput {
       message?: string;
     };
     showme?: {
-      pages: PageData[];
+      pages: PageOutputData[];
       globalNotes?: string;
     };
   };
+}
+
+// Save base64 image to temp file, returns file path
+async function saveImageToTempFile(
+  base64Data: string,
+  pageId: string,
+): Promise<string> {
+  const tempDir = join(tmpdir(), "showme-images");
+  await mkdir(tempDir, { recursive: true });
+
+  // Extract the actual base64 data (remove data:image/png;base64, prefix)
+  const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
+  const buffer = Buffer.from(base64Content, "base64");
+
+  const filePath = join(tempDir, `${pageId}.png`);
+  await writeFile(filePath, buffer);
+
+  return filePath;
 }
 
 // Read stdin for context from Claude
@@ -292,28 +320,61 @@ async function main() {
             },
           );
         }
-        console.error("[ShowMe] Payload validated, sending response first");
+        console.error("[ShowMe] Payload validated, saving images to files");
 
         const payload = rawPayload;
 
-        // Send response FIRST, then resolve promise after a short delay
-        // This prevents race condition where process.exit() runs before response is sent
-        setTimeout(() => {
-          console.error("[ShowMe] Now resolving promise");
-          resolvePromise({
-            hookSpecificOutput: {
-              decision: { behavior: "allow" },
-              showme: {
-                pages: payload.pages,
-                globalNotes: payload.globalNotes,
-              },
-            },
-          });
-        }, 100);
+        // Save images to temp files instead of including base64 in output
+        // This prevents stdout from being overwhelmed with megabytes of data
+        try {
+          const outputPages: PageOutputData[] = await Promise.all(
+            payload.pages.map(async (page) => {
+              const imagePath = page.image
+                ? await saveImageToTempFile(page.image, page.id)
+                : "";
+              return {
+                id: page.id,
+                name: page.name,
+                imagePath,
+                width: page.width,
+                height: page.height,
+                annotations: page.annotations,
+              };
+            }),
+          );
 
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { "Content-Type": "application/json" },
-        });
+          console.error(
+            `[ShowMe] Saved ${outputPages.length} images to temp files`,
+          );
+
+          // Send response FIRST, then resolve promise after a short delay
+          // This prevents race condition where process.exit() runs before response is sent
+          setTimeout(() => {
+            console.error("[ShowMe] Now resolving promise");
+            resolvePromise({
+              hookSpecificOutput: {
+                decision: { behavior: "allow" },
+                showme: {
+                  pages: outputPages,
+                  globalNotes: payload.globalNotes,
+                },
+              },
+            });
+          }, 100);
+
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (err) {
+          console.error("[ShowMe] Error saving images:", err);
+          return new Response(
+            JSON.stringify({ error: "Failed to save images" }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
       }
 
       if (url.pathname === "/api/cancel" && req.method === "POST") {
