@@ -1720,18 +1720,73 @@ class ShowMeCanvas {
   }
 
   private onPaste(e: ClipboardEvent): void {
+    // Don't intercept paste when typing in input fields
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement
+    ) {
+      return;
+    }
+
     const items = e.clipboardData?.items;
     if (!items) return;
 
     for (const item of items) {
       if (item.type.startsWith("image/")) {
+        e.preventDefault();
         const file = item.getAsFile();
         if (file) {
-          this.loadImage(file);
+          this.pasteImage(file);
         }
-        break;
+        return;
+      }
+      if (item.type === "text/plain") {
+        e.preventDefault();
+        item.getAsString((text) => {
+          this.pasteText(text);
+        });
+        return;
       }
     }
+  }
+
+  private pasteImage(file: File): void {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Draw at center of canvas, scaled to fit if too large
+        const maxWidth = this.canvas.width * 0.8;
+        const maxHeight = this.canvas.height * 0.8;
+        const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+        const width = img.width * scale;
+        const height = img.height * scale;
+        const x = (this.canvas.width - width) / 2;
+        const y = (this.canvas.height - height) / 2;
+
+        this.ctx.drawImage(img, x, y, width, height);
+        this.saveState();
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  private pasteText(text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    // Draw at center of canvas
+    this.ctx.font = `${this.brushSize * 5}px sans-serif`;
+    this.ctx.fillStyle = this.color;
+
+    // Calculate text position (centered)
+    const metrics = this.ctx.measureText(trimmed);
+    const x = (this.canvas.width - metrics.width) / 2;
+    const y = this.canvas.height / 2;
+
+    this.ctx.fillText(trimmed, x, y);
+    this.saveState();
   }
 
   private loadImage(file: File): void {
